@@ -7,11 +7,6 @@ A project that forecasts daily ATM cash demand, quantify its uncertainty, and tu
 
 Every ATM loses money two ways: stock runs outs (the machine runs dry — lost customers) and idle cash (over-loaded machines tie up currency that earns nothing). Both come from not knowing tomorrow's demand. This project builds a time-series forecaster for daily withdrawals, attaches a 95% prediction interval, and converts it into a replenishment policy using inventory theory.
 
-
-This project is deliberately small. All of the mathematics lives in **five
-Python files**, and the parts that matter most run on the standard library
-alone, so you can read them without wading through a framework.
-
 | file | what lives here |
 |---|---|
 | `data.py` | a synthetic ATM data generator + simple loaders (pure standard library) |

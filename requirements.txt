@@ -1,19 +1,21 @@
-# The pure-Python core (data.py, models.py) needs NOTHING here — it runs on the
+# The pure-Python core (data.py, models.py) needs NOTHING here: it runs on the
 # standard library alone. These packages enable SARIMA, the RAG analyst and the API.
+# Versions are pinned so a checkout months from now installs what was tested.
 
-# Classical time-series (SARIMA)
-statsmodels>=0.14
+# Classical time-series (SARIMA). 0.14.6 or newer: earlier releases call
+# scipy's fmin_l_bfgs_b with a `disp` argument that recent scipy removed.
+statsmodels==0.14.6
 
-# RAG analyst layer (mirrors the FinApp RAG sample)
-langchain-google-genai>=1.0     # Gemini chat + embeddings via LangChain
-chromadb>=0.5                   # vector store
-pypdf>=4.0                      # PDF ingestion
+# RAG analyst layer
+langchain-google-genai==2.0.8   # Gemini chat + embeddings via LangChain
+chromadb==0.5.23                # vector store
+pypdf==5.1.0                    # PDF ingestion
 
 # API
-fastapi>=0.111
-uvicorn[standard]>=0.30
-python-multipart>=0.0.9         # file uploads
-python-dotenv>=1.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20        # file uploads
+python-dotenv==1.0.1
 
 # Dev / tests
-pytest>=8.0
+pytest==8.3.5

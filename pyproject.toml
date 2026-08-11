@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+# The modules sit at the repo root; the tests live in tests/.
+pythonpath = ["."]
+testpaths = ["tests"]

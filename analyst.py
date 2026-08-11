@@ -25,6 +25,19 @@ SYSTEM_PROMPT = (
 )
 
 
+def load_env() -> None:
+    """Read .env if python-dotenv is installed, so GOOGLE_API_KEY is picked up.
+
+    Without this the README's "copy .env.example to .env" step has no effect and
+    the key has to be exported by hand.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+
+
 # ---------------------------------------------------------------------------
 # 1. Report building (pure Python)
 # ---------------------------------------------------------------------------
@@ -116,10 +129,14 @@ def chunk_text(text: str, size: int = 1200, overlap: int = 150) -> List[str]:
 class Analyst:
     def __init__(self, chroma_dir="./chroma_db", collection="atm_reports",
                  model=None, embed_model=None, top_k=4, api_key=None):
+        load_env()
         self.chroma_dir = chroma_dir
         self.collection_name = collection
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-        self.embed_model = embed_model or os.getenv("EMBEDDING_MODEL", "models/text-embedding-004")
+        # Chat model: an alias, so this keeps working as Google retires versions.
+        # Embeddings: pinned, because changing the model changes the vector
+        # dimension and invalidates an existing index.
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+        self.embed_model = embed_model or os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
         self.top_k = top_k
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
         self._col = self._emb = self._llm = None

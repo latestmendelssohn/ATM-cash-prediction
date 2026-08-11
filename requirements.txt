@@ -7,9 +7,9 @@
 statsmodels==0.14.6
 
 # RAG analyst layer
-langchain-google-genai==2.0.8   # Gemini chat + embeddings via LangChain
-chromadb==0.5.23                # vector store
-pypdf==5.1.0                    # PDF ingestion
+langchain-google-genai==2.0.8    # Gemini chat + embeddings via LangChain
+chromadb==1.5.9                  # vector store (0.5.x needs a C++ compiler on Windows)
+pypdf==5.1.0                     # PDF ingestion
 
 # API
 fastapi==0.115.6

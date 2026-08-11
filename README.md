@@ -1,26 +1,42 @@
 # Predicting ATM cash balance using time series
 
+[Open the live Streamlit demo](https://atm-cash-prediction-5n2wgq9gbhfm7sr25q3zfg.streamlit.app/)
+
 This project forecasts how much cash an ATM will dispense each day, quantifies the
 uncertainty in that forecast, and uses both to decide how much money to load into
 the machine. A Gemini-powered RAG analyst sits on top so the results can be queried
 in plain English.
 
-An ATM loses money in two ways. It can run dry, which costs customers, or it can sit
-over-loaded, so that currency is tied up earning nothing. Both problems come from not
-knowing tomorrow's demand. So the project builds a time-series forecaster for daily
-withdrawals, attaches a 95% prediction interval to it, and converts that into a
-replenishment policy using inventory theory.
+The public demo is the small Streamlit app. It uses the bundled synthetic data,
+Holt-Winters, prediction intervals and cash planning only. It does not use Gemini,
+store credentials, or connect to a bank system. The API, SARIMA model and RAG analyst
+remain available for local use.
 
-| file | what lives here |
-|---|---|
-| `data.py` | a synthetic ATM data generator plus simple loaders (pure standard library) |
-| `models.py` | error metrics, baselines, Holt-Winters from scratch, SARIMA, backtesting, and the cash-planning optimiser |
-| `analyst.py` | the RAG layer: turning results into short reports, embedding them, and answering questions with Gemini |
-| `app.py` | a FastAPI streaming service and the command-line interface |
-| `demo_logic.py` | shared forecast and cash-plan callback used by both demos |
-| `streamlit_app.py` | Streamlit Community Cloud dashboard entry point |
-| `gradio_app.py` | Gradio alternative entry point |
-| `tests/test_core.py` | tests for the core mathematics |
+## Project at a glance
+
+| part | entry point | purpose |
+|---|---|---|
+| Core | `data.py`, `models.py` | Generate/load data, forecast, backtest and calculate cash plans |
+| API and CLI | `app.py` | FastAPI endpoints and command-line workflows |
+| RAG analyst | `analyst.py` | Optional Gemini and ChromaDB reports and question answering |
+| Hosted demo | `streamlit_app.py` | Public Streamlit Community Cloud interface |
+| Alternative demo | `gradio_app.py` | Local Gradio interface using the same demo logic |
+| Shared demo code | `demo_logic.py` | One forecast/cash-plan callback used by both UIs |
+| Tests | `tests/` | Core mathematics and API smoke tests |
+
+The main data flow is:
+
+```text
+bundled CSV / data.py
+          |
+          v
+      models.py  --->  app.py (CLI + API)
+          |          ---> analyst.py (optional Gemini RAG)
+          +---------> streamlit_app.py / gradio_app.py
+```
+
+The project is a student research and demonstration project, not a production
+cash-management system.
 
 ---
 
@@ -332,15 +348,23 @@ Neither uses Gemini or requires an API key.
 ```bash
 pip install -r demo_requirements.txt
 
-# Streamlit dashboard, including the public Streamlit Community Cloud entry point
+# Streamlit dashboard
 streamlit run streamlit_app.py
 
 # Gradio alternative
 python gradio_app.py
 ```
 
-Streamlit Community Cloud runs `streamlit_app.py` from this repository. The Gradio
-entry point remains useful for local demos or a separate host.
+### Deploying the Streamlit demo
+
+The live demo runs on Streamlit Community Cloud from the `main` branch. To deploy
+your own copy, open [share.streamlit.io](https://share.streamlit.io/), choose this
+GitHub repository, select `main`, and set the main file to `streamlit_app.py`.
+The root `requirements.txt` includes the Streamlit dependency used by the hosted app.
+
+The hosted demo needs no secrets. It uses the committed synthetic CSV and does not
+call Gemini. The Gradio entry point remains useful for local demos or a separate
+Python host; Streamlit Community Cloud runs the Streamlit entry point only.
 
 ## A note on the data
 
@@ -350,6 +374,21 @@ The generator, metrics, baselines, Holt-Winters, backtester and cash optimiser u
 the Python standard library only, with no numpy or pandas, and they are covered by
 `test_core.py`. SARIMA, the RAG analyst and the API build on the packages listed in
 `requirements.txt`.
+## Limitations and scope
+
+- The bundled data is synthetic. It demonstrates the method but does not establish
+  performance on a bank's transaction logs.
+- The generator records `dispensed = min(demand, balance)`. On a stock-out day this
+  censors demand from above, so the observed series can understate unmet demand.
+- Holt-Winters models a weekly season. Monthly salary cycles and festival effects are
+  present in the generated data but are not explicit regressors in the main model.
+- Daily prediction intervals use a widening normal approximation. Cash planning uses
+  the measured spread of total cycle forecast errors from rolling-origin backtests.
+- The API has open CORS and no authentication. Use it on localhost unless you add
+  access control and quota protection.
+- Gemini, ChromaDB and PDF ingestion are optional local features. The public
+  Streamlit demo does not use them and does not require an API key.
+
 ## References
 
 - Hyndman, R. J. & Athanasopoulos, G. *Forecasting: Principles and Practice*, for

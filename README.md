@@ -23,8 +23,8 @@ using inventory theory.
 ## Problem
 
 For ATM $i$ on day $t$, let $y_t$ be the net cash dispensed. Assume we want a 14-day
-point forecast $\hat y_{t+1..t+H}$, a 95% prediction interval, and the cash $S$
-to load so the stock-out probability over the cycle stays below $1-\text{SL}$.
+point forecast $\hat y_{t+1..t+H}$, 95% prediction interval, and cash $S$
+to load so that the stock-out probability over the cycle stays below $1-\text{SL}$.
 ATM demand is dominated by **calendar structure**: a strong weekly cycle
 (weekend peaks), a monthly salary/rent cycle, and festival spikes.
 

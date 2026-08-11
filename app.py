@@ -71,8 +71,14 @@ def build_reports(atm_id, horizon=14, service_level=0.95, path=DATA_PATH):
     import analyst
     loc = data.location_map(path).get(atm_id, "")
     fc = forecast_atm(atm_id, "holt_winters", horizon, path=path)
-    board = models.leaderboard(data.load_series(path, atm_id)[1], horizon=horizon)
-    plan = models.recommend_cash_load(fc["point"], fc["sigma"], service_level)
+    y = data.load_series(path, atm_id)[1]
+    board = models.leaderboard(y, horizon=horizon)
+    # Same measured cycle sigma the cash-plan command uses, so the indexed report
+    # and the API cannot disagree about the safety stock.
+    cycle_sigma = models.cycle_sigma_from_backtest(
+        y, lambda: models.build_model("holt_winters"), horizon=horizon)
+    plan = models.recommend_cash_load(fc["point"], fc["sigma"], service_level,
+                                      cycle_sigma=cycle_sigma)
     start = fc["forecast_start"]
     return [
         analyst.forecast_report(atm_id, "holt_winters", start, fc["point"],
@@ -131,6 +137,9 @@ def create_app():
     @app.get("/health")
     def health():
         import os
+
+        import analyst
+        analyst.load_env()
         return {"status": "ok", "has_api_key": bool(os.getenv("GOOGLE_API_KEY"))}
 
     @app.post("/forecast")

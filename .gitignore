@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+*.key
+
+# Data artifacts (keep the small generated sample under version control, ignore big/derived ones)
+data/processed/*
+!data/processed/.gitkeep
+artifacts/
+*.pkl
+*.joblib
+*.h5
+*.keras
+
+# Vector store
+.chroma/
+chroma_db/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

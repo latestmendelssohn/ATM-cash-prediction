@@ -46,7 +46,7 @@ machine's own recent past:
   for a day or two;
 - A slow **trend**, as a neighbourhood grows or card/UPI usage nibbles at cash.
 
-A classical way to say this is that the series decomposes, roughly, into
+A way to say this is that the series decomposes, roughly, into
 *trend + seasonality + remainder*:
 
 $$y_t \;=\; T_t \;+\; S_t \;+\; R_t,$$
@@ -103,17 +103,13 @@ appropriate day-of-week term,
 
 $$\hat y_{t+h} = \ell_t + h\,b_t + s_{t-m+((h-1)\bmod m)+1}.$$
 
-Read those equations as *"nudge each belief towards what today's data suggests,
-but only partway."* The three smoothing constants $\alpha,\beta,\gamma \in [0,1]$
+Read those equations as *"belief towards what today's data suggests,
+but only partly."* The three smoothing constants $\alpha,\beta,\gamma \in [0,1]$
 control how reactive each belief is: near 1 the model trusts the latest day and
-adapts fast (but jitters); near 0 it changes its mind slowly (but lags). Rather
-than guess them, we **fit** $(\alpha,\beta,\gamma)$ by minimising the in-sample
+adapts fast. Rather than guess them, we **fit** $(\alpha,\beta,\gamma)$ by minimising the in-sample
 one-step-ahead sum of squared errors, using a coarse grid search followed by a
 few rounds of coordinate descent — enough to land near the optimum of this
-smooth, low-dimensional objective without needing SciPy. There is also a
-multiplicative-seasonal variant for machines whose weekly swings grow in
-proportion to their overall level.
-
+smooth, low-dimensional objective.
 ### SARIMA modelling
 
 ARIMA describes the series through the **autocorrelation** of its shocks. Using the backshift operator

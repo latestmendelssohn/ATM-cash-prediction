@@ -17,6 +17,9 @@ replenishment policy using inventory theory.
 | `models.py` | error metrics, baselines, Holt-Winters from scratch, SARIMA, backtesting, and the cash-planning optimiser |
 | `analyst.py` | the RAG layer: turning results into short reports, embedding them, and answering questions with Gemini |
 | `app.py` | a FastAPI streaming service and the command-line interface |
+| `demo_logic.py` | shared forecast and cash-plan callback used by both demos |
+| `streamlit_app.py` | Streamlit Community Cloud dashboard entry point |
+| `gradio_app.py` | Gradio alternative entry point |
 | `tests/test_core.py` | tests for the core mathematics |
 
 ---
@@ -275,6 +278,9 @@ data.py         synthetic data generation + loaders (pure stdlib)
 models.py       metrics · baselines · Holt-Winters · SARIMA · backtest · cash plan
 analyst.py      RAG: reports + ChromaDB + Gemini + LangChain
 app.py          FastAPI streaming API + CLI
+demo_logic.py   shared forecast + cash-plan logic for both demos
+streamlit_app.py Streamlit Community Cloud dashboard
+gradio_app.py   Gradio alternative entry point
 tests/          tests for the core maths
 data/atm_transactions.csv   bundled synthetic dataset (5 ATMs × 3 years)
 ```
@@ -316,6 +322,25 @@ Interactive docs live at `/docs`.
 The API has open CORS and no authentication, which is fine on localhost and not
 fine anywhere else, because `/chat` and `/index` spend Gemini quota per request.
 Put it behind auth before exposing it on a network.
+
+### Local Streamlit and Gradio demos
+
+The project has two small UI entry points that share `demo_logic.py`. Both use only
+the bundled synthetic data, Holt-Winters, prediction intervals and cash planning.
+Neither uses Gemini or requires an API key.
+
+```bash
+pip install -r demo_requirements.txt
+
+# Streamlit dashboard, including the public Streamlit Community Cloud entry point
+streamlit run streamlit_app.py
+
+# Gradio alternative
+python gradio_app.py
+```
+
+Streamlit Community Cloud runs `streamlit_app.py` from this repository. The Gradio
+entry point remains useful for local demos or a separate host.
 
 ## A note on the data
 

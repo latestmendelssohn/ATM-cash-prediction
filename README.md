@@ -1,7 +1,6 @@
 # Predicting ATM Cash Balance using Time Series
 
-**A project that forecasts how much cash an ATM will hand out each day, is honest
-about how uncertain that guess is, and uses both to decide how much money to load
+**A project that forecasts how much cash an ATM will hand out each day, and uncertainty in the forecast, and use both to decide how much money to load
 into the machine — with a Gemini-powered RAG analyst.**
 
 A project that forecasts daily ATM cash demand, quantify its uncertainty, and turn that into a cost-optimal cash-loading decision, with a Gemini-powered RAG analyst.

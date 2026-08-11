@@ -23,16 +23,13 @@ Fix one machine. Let $y_t$ be the net cash it dispenses on day $t$ (withdrawals
 minus the occasional deposit), measured in rupees. Given the history
 $y_1,\dots,y_n$ we want three things:
 
-1. a **point forecast** $\hat y_{n+1},\dots,\hat y_{n+H}$ for the next
+1. A **point forecast** $\hat y_{n+1},\dots,\hat y_{n+H}$ for the next
    $H = 14$ days;
-2. an honest **prediction interval** $[\hat\ell_{n+k},\,\hat u_{n+k}]$ around
-   each of those days, at a stated confidence such as 95%; and
-3. a **replenishment decision** — the amount $S$ of cash to load — chosen so
-   that the chance of running dry before the next refill is acceptably small,
+2. A **prediction interval** $[\hat\ell_{n+k},\,\hat u_{n+k}]$ around
+   each of those days, at 95% confidence.
+3. A **replenishment decision** — the amount $S$ of cash to load — chosen so
+   that the chance of running dry before the next refill is under 5%,
    *and* so that we are not needlessly hoarding cash.
-
-The first two are statistics; the third is operations research. The whole point
-of the project is that they belong together.
 
 ## How ATM cash demand actually behaves
 
@@ -41,13 +38,13 @@ withdrawals are not random noise around a fixed number — they carry a lot of
 predictable structure, most of it driven by the **calendar** rather than by the
 machine's own recent past:
 
-- a strong **weekly rhythm** — people pull out cash for the weekend, so
-  Friday–Sunday run high and mid-week runs low;
-- a **monthly salary-and-rent cycle** — a spike in the first few days of the
-  month and again at month-end, when salaries land and bills fall due;
+- A strong **weekly rhythm** — people pull out cash for the weekend, so
+  Friday–Sunday run high and mid-week runs low.
+- A **monthly salary-and-rent cycle** — a spike in the first few days of the
+  month starting and ending, when salaries land and bills fall due.
 - **festival spikes** — Diwali, Christmas and the like, when cash spending jumps
   for a day or two;
-- a slow **trend**, as a neighbourhood grows or card/UPI usage nibbles at cash.
+- A slow **trend**, as a neighbourhood grows or card/UPI usage nibbles at cash.
 
 A classical way to say this is that the series decomposes, roughly, into
 *trend + seasonality + remainder*:
@@ -65,36 +62,30 @@ statistical behaviour of a series (its mean, its variance) does not drift over
 time. ATM demand is clearly *not* stationary as-is — it trends and it has
 seasonality — so the standard remedy is *differencing*: modelling the change
 $y_t - y_{t-1}$, or the seasonal change $y_t - y_{t-m}$, which removes trend and
-seasonal level and leaves something much closer to stationary. That single idea
-is the backbone of the ARIMA family below.
+seasonal level and leaves something much closer to stationary.
 
 ## My methods: the models and the thinking behind them
 
-### Baselines — the honest yardstick
+### Benchmarks
 
-It is easy to be impressed by a complicated model until you check whether a
-trivial one does just as well. So we always measure against two baselines:
+We always measure against two benchmarks:
 
 - the **historical mean**, $\hat y_{n+k} = \bar y$ — the "nothing ever changes"
   forecast; and
 - the **seasonal naïve**, $\hat y_{n+k} = y_{n+k-m}$ — literally "next Monday
   will look like last Monday".
 
-The seasonal naïve is a surprisingly tough opponent precisely because so much of
-the signal is weekly. If a fancy model cannot beat it, the fancy model is not
-earning its keep.
 
-### Holt-Winters — exponential smoothing, built from scratch
+### Holt-Winters forecasting method — exponential smoothing, built from scratch
 
-Exponential smoothing rests on a very human intuition: **recent observations
+Exponential smoothing rests on : **recent observations
 should count for more than old ones, but the old ones should not be thrown away
-entirely.** A simple exponentially weighted average of the past does exactly
-that. Holt-Winters extends the idea to series that also have a trend and a
+entirely.** Exponentially weighted average(EWMA) of the past does that job well and Holt-Winters extends the idea to series that also have a trend and a
 season, by tracking three quantities that are updated a little bit each day:
 
-- a **level** $\ell_t$ — where the series is right now;
-- a **trend** $b_t$ — how fast it is drifting up or down;
-- a **seasonal** term $s_t$ — how this particular day of the week differs from
+- **level** $\ell_t$ — where the series is right now;
+- **trend** $b_t$ — how fast it is drifting up or down;
+- **seasonal** term $s_t$ — how this particular day of the week differs from
   the level.
 
 In additive form the update equations are
@@ -123,17 +114,15 @@ smooth, low-dimensional objective without needing SciPy. There is also a
 multiplicative-seasonal variant for machines whose weekly swings grow in
 proportion to their overall level.
 
-### SARIMA — modelling the correlations directly
+### SARIMA modelling
 
-Where Holt-Winters describes the series through evolving states, ARIMA describes
-it through the **autocorrelation** of its shocks. Using the backshift operator
+ARIMA describes the series through the **autocorrelation** of its shocks. Using the backshift operator
 $B$ (defined by $B\,y_t = y_{t-1}$), a seasonal ARIMA model of order
 $(p,d,q)(P,D,Q)_m$ is written compactly as
 
 $$\Phi_P(B^m)\,\phi_p(B)\,(1-B)^d(1-B^m)^D\,y_t = \Theta_Q(B^m)\,\theta_q(B)\,\varepsilon_t.$$
 
-It looks dense, but each piece has a plain meaning. The factors $(1-B)^d$ and
-$(1-B^m)^D$ are the **differencing** that removes trend and seasonal level to
+The factors $(1-B)^d$ and $(1-B^m)^D$ are the **differencing** that removes trend and seasonal level to
 reach stationarity. The $\phi$ and $\Phi$ polynomials are the **autoregressive**
 part — today depends on recent (and same-day-last-week) values. The $\theta$ and
 $\Theta$ polynomials are the **moving-average** part — today depends on recent
@@ -144,10 +133,9 @@ the amount of differencing with stationarity tests (ADF, KPSS). Here SARIMA is
 available through `statsmodels` as an optional, heavier-weight alternative to
 Holt-Winters.
 
-## Being honest about uncertainty
+## Measuring uncertainty with certainty
 
-A single number is a fragile thing to bet cash on, so every forecaster in this
-project can also return a **prediction interval**. We estimate the standard
+Every forecaster in this project returns a **prediction interval**. We estimate the standard
 deviation $\hat\sigma$ of the one-step residuals and form a band
 
 $$\hat y_{t+k} \;\pm\; z_{1-\alpha/2}\,\hat\sigma\,\sqrt{k},$$
@@ -160,7 +148,7 @@ a sum of $k$ independent shocks is $k$ times the one-step variance, so the
 standard deviation scales as $\sqrt{k}$. In words: guessing tomorrow is easy,
 guessing two weeks out is not, and the band should visibly fan out to admit it.
 
-## Judging the models fairly
+## Judgement
 
 It is tempting to split the data once — train on the first stretch, test on the
 last — and report the score. But that is one noisy sample, and it quietly leaks
@@ -186,8 +174,7 @@ tells a slightly different story:
 
 ## Turning a forecast into a decision
 
-This is where forecasting stops being an academic exercise. Suppose we must load
-$S$ rupees to cover the next cycle, and demand $D$ over that cycle is uncertain.
+Suppose we must load $S$ rupees to cover the next cycle, and demand $D$ over that cycle is uncertain.
 Every rupee we are short costs us $C_u$ (a stock-out — lost goodwill and
 penalties); every rupee left idle costs us $C_o$ (carrying and opportunity cost).
 The expected cost is
@@ -301,14 +288,10 @@ Interactive docs live at `/docs`.
 
 ## A note on the data
 
-Real ATM transaction logs are confidential, so the bundled dataset is generated
-by a process with *known* structure (`data.py`) — which is rather convenient for
-teaching, since we can check whether each model recovers the seasonality and
-trend we planted. To use this on real data, match the CSV schema
-(`date, atm_id, net_cash_out, …`) and everything downstream just works.
+The bundled dataset is generated by (`data.py`).
 
 The generator, metrics, baselines, Holt-Winters, backtester and cash optimiser
-are **pure standard-library Python** (no numpy or pandas) and are covered by
+are **standard python libraries** (no numpy or pandas) and are covered by
 `test_core.py`. SARIMA, the RAG analyst and the API build on the packages listed
 in `requirements.txt`.
 

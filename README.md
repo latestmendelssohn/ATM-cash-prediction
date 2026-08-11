@@ -25,10 +25,9 @@ using inventory theory.
 For ATM $i$ on day $t$, let $y_t$ be the net cash dispensed. Assume we want a 14-day
 point forecast $\hat y_{t+1..t+H}$, 95% prediction interval, and cash $S$
 to load so that the stock-out probability over the cycle stays below $1-\text{SL}$.
-ATM demand is dominated by **calendar structure**: a strong weekly cycle
-(weekend peaks), a monthly salary/rent cycle, and festival spikes.
+ATM demand is dominated by **calendar structure**: a strong weekend peaks, a monthly salary/rent cycle, and festival spikes.
 
-## Methods
+## My Methods
 
 - **Baselines** — historical mean and **seasonal naïve** ($\hat y_{t+k}=y_{t+k-m}$, $m=7$). Any real model must beat these.
 - **Holt-Winters** (implemented from scratch) — triple exponential smoothing over level $\ell_t$, trend $b_t$ and season $s_t$:

@@ -27,7 +27,7 @@ from datetime import date, timedelta
 import data
 import models
 
-DATA_PATH = "data/atm_transactions.csv"
+DATA_PATH = data.DEFAULT_CSV
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +50,16 @@ def forecast_atm(atm_id, model="holt_winters", horizon=14, level=0.95, path=DATA
     }
 
 
-def cash_plan_atm(atm_id, service_level=0.95, horizon=14, balance=None, path=DATA_PATH):
+def cash_plan_atm(atm_id, service_level=0.95, horizon=14, balance=None, path=DATA_PATH,
+                  cu=None, co=None, measure_sigma=True):
     fc = forecast_atm(atm_id, "holt_winters", horizon, path=path)
-    plan = models.recommend_cash_load(fc["point"], fc["sigma"], service_level, balance)
+    cycle_sigma = None
+    if measure_sigma:
+        _, y = data.load_series(path, atm_id)
+        cycle_sigma = models.cycle_sigma_from_backtest(
+            y, lambda: models.build_model("holt_winters"), horizon=horizon)
+    plan = models.recommend_cash_load(fc["point"], fc["sigma"], service_level, balance,
+                                      cu=cu, co=co, cycle_sigma=cycle_sigma)
     return {"atm_id": atm_id, **plan}
 
 
@@ -86,8 +93,10 @@ def create_app():
     app = FastAPI(title="ATM Cash Forecasting + RAG Analyst", version="1.0.0")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                        allow_headers=["*"])
+    # NOTE: open CORS and no authentication. Fine for a local demo, but /chat and
+    # /index spend Gemini quota per request, so put this behind auth before
+    # exposing it on a network.
 
-    sessions: dict = {}          # session_id -> list[(role, text)]
     holder: dict = {}            # lazily-built Analyst
 
     def analyst_obj():
@@ -107,6 +116,8 @@ def create_app():
         horizon: int = 14
         service_level: float = 0.95
         balance: float | None = None
+        cu: float | None = None
+        co: float | None = None
 
     class ChatReq(BaseModel):
         question: str
@@ -130,7 +141,8 @@ def create_app():
     @app.post("/cash-plan")
     def cash_plan(req: CashReq):
         try:
-            return cash_plan_atm(req.atm_id, req.service_level, req.horizon, req.balance)
+            return cash_plan_atm(req.atm_id, req.service_level, req.horizon, req.balance,
+                                 cu=req.cu, co=req.co)
         except (ValueError, KeyError) as e:
             raise HTTPException(400, str(e))
 
@@ -147,9 +159,13 @@ def create_app():
     @app.post("/ingest/pdf")
     async def ingest_pdf(file: UploadFile = File(...)):
         import os
-        tmp = f"/tmp/{file.filename}"
+        import tempfile
+
+        # Never join the client-supplied filename onto a path: it can contain
+        # "..". A temp file also keeps this working off Linux.
+        fd, tmp = tempfile.mkstemp(suffix=".pdf")
         try:
-            with open(tmp, "wb") as fh:
+            with os.fdopen(fd, "wb") as fh:
                 fh.write(await file.read())
             n = analyst_obj().add_pdf(tmp)
         except Exception as e:
@@ -166,8 +182,6 @@ def create_app():
             res = analyst_obj().ask(req.question, req.atm_id)
         except RuntimeError as e:
             raise HTTPException(503, str(e))
-        sessions.setdefault(sid, []).append(("user", req.question))
-        sessions[sid].append(("assistant", res["answer"]))
         return {"session_id": sid, **res}
 
     @app.post("/chat/stream")
@@ -176,15 +190,12 @@ def create_app():
 
         def gen():
             yield f"event: session\ndata: {sid}\n\n"
-            collected = []
             try:
                 for tok in analyst_obj().stream(req.question, req.atm_id):
-                    collected.append(tok)
                     yield f"data: {json.dumps({'token': tok})}\n\n"
             except RuntimeError as e:
                 yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
                 return
-            sessions.setdefault(sid, []).append(("assistant", "".join(collected)))
             yield "event: done\ndata: [DONE]\n\n"
 
         return StreamingResponse(gen(), media_type="text/event-stream")
@@ -218,11 +229,17 @@ def _cli(argv=None):
     cp.add_argument("--horizon", type=int, default=14)
     cp.add_argument("--service-level", dest="sl", type=float, default=0.95)
     cp.add_argument("--balance", type=float, default=None)
+    cp.add_argument("--cu", type=float, default=None,
+                    help="cost per rupee short (stock-out); with --co it sets the service level")
+    cp.add_argument("--co", type=float, default=None,
+                    help="cost per rupee of idle cash; with --cu it sets the service level")
 
     ix = sub.add_parser("index"); ix.add_argument("--atm", required=True)
     ix.add_argument("--horizon", type=int, default=14)
 
-    sub.add_parser("backtest").add_argument("--atm", required=True)
+    bt = sub.add_parser("backtest"); bt.add_argument("--atm", required=True)
+    bt.add_argument("--sarima", action="store_true",
+                    help="also benchmark SARIMA on the same folds (slow, needs statsmodels)")
     sub.add_parser("pipeline")
     c = sub.add_parser("chat"); c.add_argument("question"); c.add_argument("--atm", default=None)
     c.add_argument("--stream", action="store_true")
@@ -239,18 +256,26 @@ def _cli(argv=None):
         print(json.dumps(forecast_atm(a.atm, a.model, a.horizon, a.level), indent=2, default=str))
     elif a.cmd == "backtest":
         _, y = data.load_series(DATA_PATH, a.atm)
+        names = ("holt_winters", "seasonal_naive", "mean")
+        if a.sarima:
+            names += ("sarima",)
         print(f"Rolling-origin leaderboard for {a.atm}:\n")
-        print(models.format_table(models.leaderboard(y)))
+        print(models.format_table(models.leaderboard(y, models=names)))
     elif a.cmd == "cash-plan":
-        print(json.dumps(cash_plan_atm(a.atm, a.sl, a.horizon, a.balance), indent=2, default=str))
+        print(json.dumps(cash_plan_atm(a.atm, a.sl, a.horizon, a.balance, cu=a.cu, co=a.co),
+                         indent=2, default=str))
     elif a.cmd == "pipeline":
         print(f"{'ATM':<8}{'best':<15}{'MASE':>7}{'total_14d':>16}{'cycle_load':>16}")
         for atm in data.list_atms(DATA_PATH):
             _, y = data.load_series(DATA_PATH, atm)
             board = models.leaderboard(y)
-            fc = forecast_atm(atm, board[0]["model"], 14)
-            plan = models.recommend_cash_load(fc["point"], fc["sigma"], 0.95)
-            print(f"{atm:<8}{board[0]['model']:<15}{board[0]['MASE']:>7}"
+            best = board[0]["model"]
+            fc = forecast_atm(atm, best, 14)
+            cycle_sigma = models.cycle_sigma_from_backtest(
+                y, lambda: models.build_model(best), horizon=14)
+            plan = models.recommend_cash_load(fc["point"], fc["sigma"], 0.95,
+                                              cycle_sigma=cycle_sigma)
+            print(f"{atm:<8}{best:<15}{board[0]['MASE']:>7}"
                   f"{sum(fc['point']):>16,.0f}{plan['cycle_load']:>16,.0f}")
     elif a.cmd == "index":
         import analyst

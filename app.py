@@ -16,8 +16,12 @@ CLI:
 
 The forecast / backtest / cash-plan / pipeline commands run on the pure-Python
 core with no third-party packages.
+
+Note: no ``from __future__ import annotations`` here on purpose. It would turn the
+endpoint annotations into strings, and FastAPI resolves those against the module
+globals, where ``UploadFile`` is not present because the FastAPI imports live
+inside ``create_app``. Needs Python 3.10+ for the ``X | None`` syntax below.
 """
-from __future__ import annotations
 
 import argparse
 import json

@@ -2,18 +2,12 @@
 
 **A project that forecasts how much cash an ATM will hand out each day, is honest
 about how uncertain that guess is, and uses both to decide how much money to load
-into the machine — with a Gemini-powered RAG analyst so you can ask about any of
-it in plain English.**
+into the machine — with a Gemini-powered RAG analyst.**
 
-If you have ever found an ATM out of cash on a Friday evening, you have met this
-problem from the customer's side. From the bank's side it is a genuinely hard
-balancing act. Load too little and the machine runs dry — customers are turned
-away, the bank pays service-level penalties, and people quietly start trusting a
-different bank. Load too much and a small fortune sits idle inside a metal box,
-insured and guarded but earning nothing, when it could have been lent out or
-invested. Both mistakes are really the same mistake: **not knowing tomorrow's
-demand.** So that is where we start — with forecasting — and then we let the
-forecast drive the money decision.
+A project that forecasts daily ATM cash demand, quantify its uncertainty, and turn that into a cost-optimal cash-loading decision, with a Gemini-powered RAG analyst.
+
+Every ATM loses money two ways: stock runs outs (the machine runs dry — lost customers) and idle cash (over-loaded machines tie up currency that earns nothing). Both come from not knowing tomorrow's demand. This project builds a time-series forecaster for daily withdrawals, attaches a 95% prediction interval, and converts it into a replenishment policy using inventory theory.
+
 
 This project is deliberately small. All of the mathematics lives in **five
 Python files**, and the parts that matter most run on the standard library

@@ -1,18 +1,17 @@
 # Predicting ATM Cash Balance using Time Series
 
-**An M.Sc. (Mathematics) project — forecast daily ATM cash demand, quantify its
+**A project that forecasts daily ATM cash demand, quantify its
 uncertainty, and turn that into a cost-optimal cash-loading decision, with a
-Gemini-powered RAG analyst to query the results in plain English.**
+Gemini-powered RAG analyst.**
 
 Every ATM loses money two ways: **stock-outs** (the machine runs dry — lost
-customers, SLA penalties) and **idle cash** (over-loaded machines tie up
+customers) and **idle cash** (over-loaded machines tie up
 currency that earns nothing). Both come from not knowing tomorrow's demand.
-This project builds a principled time-series forecaster for daily withdrawals,
+This project builds a time-series forecaster for daily withdrawals,
 attaches a 95% prediction interval, and converts it into a replenishment policy
 using inventory theory. It mirrors the stack of the *FinApp RAG Agent*
 (LangChain + Gemini + ChromaDB + PyPDF, Dockerised, streaming API).
 
-The project is deliberately compact — **just five Python files.**
 
 | file | contents |
 |---|---|
@@ -24,7 +23,7 @@ The project is deliberately compact — **just five Python files.**
 
 ## Problem
 
-For ATM $i$ on day $t$, let $y_t$ be the net cash dispensed. We want a 14-day
+For ATM $i$ on day $t$, let $y_t$ be the net cash dispensed. Assume we want a 14-day
 point forecast $\hat y_{t+1..t+H}$, a 95% prediction interval, and the cash $S$
 to load so the stock-out probability over the cycle stays below $1-\text{SL}$.
 ATM demand is dominated by **calendar structure**: a strong weekly cycle

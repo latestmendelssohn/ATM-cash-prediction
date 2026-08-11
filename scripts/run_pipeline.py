@@ -1,6 +1,4 @@
-"""
-End-to-end batch pipeline (pure-Python core; no third-party deps required).
-
+End to end pipeline
 from __future__ import annotations
 
 import argparse
@@ -8,17 +6,15 @@ import json
 import sys
 from pathlib import Path
 
-# make ``src`` importable when run directly (no install needed)
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from atmforecast import service                          # noqa: E402
-from atmforecast.data.generate_synthetic import generate  # noqa: E402
-from atmforecast.data.loader import list_atms            # noqa: E402
+from atmforecast import service                          
+from atmforecast.data.generate_synthetic import generate
+from atmforecast.data.loader import list_atms
 
 
 def _location_map(data_path: str) -> dict:
-    """Best-effort atm_id -> location_type map using stdlib csv."""
     import csv
 
     out = {}

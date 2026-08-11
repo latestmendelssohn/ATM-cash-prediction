@@ -7,8 +7,8 @@ on:
 
 jobs:
   core:
-    # The forecasting core is standard library only, so the test job installs
-    # nothing but pytest.
+    # The forecasting core is standard library only, so this job installs
+    # nothing but pytest. The API tests skip themselves here.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,4 +16,16 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pytest==8.3.5
+      - run: pytest -q
+
+  api:
+    # Run again with FastAPI present. Some failures only appear once it is
+    # installed, because app.py builds the API at import time.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest==8.3.5 fastapi==0.115.6 httpx==0.28.1 python-multipart==0.0.20
       - run: pytest -q

@@ -4,13 +4,12 @@
 uncertainty, and turn that into a cost-optimal cash-loading decision, with a
 Gemini-powered RAG analyst.**
 
-Every ATM loses money two ways: **stock-outs** (the machine runs dry — lost
+Every ATM loses money two ways: **stock runs outs** (the machine runs dry — lost
 customers) and **idle cash** (over-loaded machines tie up
 currency that earns nothing). Both come from not knowing tomorrow's demand.
 This project builds a time-series forecaster for daily withdrawals,
 attaches a 95% prediction interval, and converts it into a replenishment policy
-using inventory theory. It mirrors the stack of the *FinApp RAG Agent*
-(LangChain + Gemini + ChromaDB + PyPDF, Dockerised, streaming API).
+using inventory theory.
 
 
 | file | contents |

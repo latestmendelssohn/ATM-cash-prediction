@@ -45,6 +45,10 @@ FESTIVALS = {
     (12, 25): 1.30, (12, 31): 1.35,
 }
 
+# The bundled dataset, resolved relative to this file so the CLI and the tests
+# work from any working directory.
+DEFAULT_CSV = Path(__file__).resolve().parent / "data" / "atm_transactions.csv"
+
 
 def _days_in_month(d: date) -> int:
     nxt = (d.replace(day=28) + timedelta(days=4)).replace(day=1)

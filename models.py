@@ -62,11 +62,11 @@ def all_metrics(y, f, y_train=None, m=7) -> Dict[str, float]:
 # 2. Prediction-interval helper (Gaussian, widens with horizon)
 # ---------------------------------------------------------------------------
 
-_Z = {0.80: 1.2816, 0.90: 1.6449, 0.95: 1.9600, 0.975: 2.2414, 0.99: 2.5758}
-
-
 def z_for_level(level: float) -> float:
-    return _Z.get(level, _Z[min(_Z, key=lambda L: abs(L - level))])
+    """Two-sided normal quantile for a confidence ``level`` (0.95 -> 1.96)."""
+    if not 0.0 < level < 1.0:
+        raise ValueError("level must be in (0,1)")
+    return normal_quantile(0.5 * (1.0 + level))
 
 
 def _std(xs: Sequence[float]) -> float:
@@ -93,7 +93,7 @@ class MeanForecast:
 
     def fit(self, y):
         self._mean = sum(y) / len(y)
-        self._sigma = _std([y[i] - sum(y[:i]) / i for i in range(1, len(y))])
+        self._sigma = _std(y)
         return self
 
     def predict(self, h):
@@ -232,9 +232,9 @@ class HoltWinters:
         if self.optimize and None in (self.alpha, self.beta, self.gamma):
             self.alpha, self.beta, self.gamma = self._optimise(y)
         else:
-            self.alpha = self.alpha or 0.3
-            self.beta = self.beta or 0.1
-            self.gamma = self.gamma or 0.1
+            self.alpha = 0.3 if self.alpha is None else self.alpha
+            self.beta = 0.1 if self.beta is None else self.beta
+            self.gamma = 0.1 if self.gamma is None else self.gamma
         self._level, self._trend, self._season, fitted = self._run(y, self.alpha, self.beta, self.gamma)
         start = self.m if self.seasonal is not None else 1
         self._sigma = _std([y[t] - fitted[t] for t in range(start, len(y))])
@@ -324,6 +324,9 @@ def rolling_origin_backtest(y, factory: Callable[[], object], horizon=14,
                             min_train=365, step=14, m=7) -> Dict[str, float]:
     """Walk the forecast origin forward; average per-fold metrics."""
     y = list(y)
+    if len(y) < min_train + horizon:
+        raise ValueError(f"series too short for backtesting: need at least "
+                         f"min_train + horizon = {min_train + horizon} points, got {len(y)}")
     folds: List[Dict[str, float]] = []
     origin = min_train
     while origin + horizon <= len(y):
@@ -334,6 +337,29 @@ def rolling_origin_backtest(y, factory: Callable[[], object], horizon=14,
         origin += step
     keys = folds[0].keys()
     return {k: sum(f[k] for f in folds) / len(folds) for k in keys} | {"folds": len(folds)}
+
+
+def cycle_sigma_from_backtest(y, factory: Callable[[], object], horizon=14,
+                              min_train=365, step=14) -> float:
+    r"""Standard deviation of the *cycle-total* forecast error, measured not assumed.
+
+    The per-day interval widens like :math:`\sigma\sqrt{k}`, which assumes errors
+    accumulate. The safety stock needs the spread of the total over the whole
+    cycle, so measure it directly on the same rolling-origin folds: for each
+    fold, compare the actual ``horizon``-day total against the forecast total.
+    """
+    y = list(y)
+    if len(y) < min_train + horizon:
+        raise ValueError(f"series too short for backtesting: need at least "
+                         f"min_train + horizon = {min_train + horizon} points, got {len(y)}")
+    errors: List[float] = []
+    origin = min_train
+    while origin + horizon <= len(y):
+        model = factory()
+        model.fit(y[:origin])
+        errors.append(sum(y[origin:origin + horizon]) - sum(model.predict(horizon)))
+        origin += step
+    return _std(errors)
 
 
 def leaderboard(y, models=("holt_winters", "seasonal_naive", "mean"),
@@ -392,23 +418,38 @@ def normal_quantile(p: float) -> float:
 
 def recommend_cash_load(forecast: Sequence[float], sigma: float,
                         service_level: float = 0.95,
-                        current_balance: float | None = None) -> Dict[str, object]:
+                        current_balance: float | None = None,
+                        cu: float | None = None, co: float | None = None,
+                        cycle_sigma: float | None = None) -> Dict[str, object]:
     r"""Base-stock cash to load for a cycle of length ``L = len(forecast)``::
 
-        S = sum(forecast) + z_{SL} * sigma * sqrt(L)
+        S = sum(forecast) + z_{p*} * cycle_sigma
 
     where the second term is the safety stock buffering demand uncertainty.
+
+    ``cu`` and ``co`` are the per-rupee understock (stock-out) and overstock
+    (idle cash) costs. Supply both and the service level becomes the newsvendor
+    critical ratio :math:`p^* = C_u / (C_u + C_o)` instead of a number chosen by
+    hand. ``cycle_sigma`` is the standard deviation of *cycle-total* demand; pass
+    the value measured by :func:`cycle_sigma_from_backtest` when you have it, and
+    it falls back to the independent-errors approximation ``sigma * sqrt(L)``.
     """
+    if cu is not None and co is not None:
+        if cu <= 0 or co <= 0:
+            raise ValueError("cu and co must be positive")
+        service_level = cu / (cu + co)
     z = normal_quantile(service_level)
     L = len(forecast)
     cycle_mean = sum(forecast)
-    cycle_sigma = sigma * math.sqrt(L)
+    if cycle_sigma is None:
+        cycle_sigma = sigma * math.sqrt(L)
     cycle_load = cycle_mean + z * cycle_sigma
     stockout_prob = 1.0 - normal_cdf(z) if cycle_sigma else 0.0
     plan = {
         "service_level": service_level,
         "cycle_load": cycle_load,
         "safety_stock": z * cycle_sigma,
+        "cycle_sigma": cycle_sigma,
         "per_day_load": [mu + z * sigma for mu in forecast],
         "expected_stockout_prob": stockout_prob,
     }

@@ -1,19 +1,6 @@
-#!/usr/bin/env python3
 """
 End-to-end batch pipeline (pure-Python core; no third-party deps required).
 
-Steps
------
-1. (optional) generate the synthetic dataset if it is missing
-2. for every ATM: rolling-origin backtest -> pick best model -> forecast
-   -> compute the 95% cash-replenishment plan
-3. write machine-readable artifacts to ``artifacts/`` and print a summary
-
-The artifacts (forecasts.json, leaderboards.json, cash_plans.json,
-reports.jsonl) are exactly what the RAG layer embeds. Run:
-
-    python scripts/run_pipeline.py --horizon 14 --service-level 0.95
-"""
 from __future__ import annotations
 
 import argparse

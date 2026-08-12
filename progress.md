@@ -41,3 +41,12 @@
 - Measured coverage: ATM1 99.45%, ATM2 98.90%, and ATM4 99.45% over 13 folds each. The intervals are conservative; ATM4's mean interval width is 5,024.79 because the retained outlier inflates uncertainty.
 - Validation: `py -3.12 -m pytest -q` passed 38 tests; compilation and `git diff --check` passed.
 - Next: use the measured real-data backtest errors in the cash-loading policy, while keeping the stock-out and sparse-series limitations explicit.
+
+
+## 2026-08-12 cash policy step
+
+- Added `real_cash_policy.py` and `tests/test_real_cash_policy.py`. It reuses `models.recommend_cash_load` with measured 14-day cycle-error spreads from the real rolling-origin folds.
+- Generated `reports/real_cash_policy.md` for 90%, 95%, 97.5%, and 99% service levels. At 95%, recommended cycle loads are 1,242.83 for ATM1, 1,044.18 for ATM2, and 11,783.39 for ATM4 in the source unit.
+- ATM4's measured cycle-error sigma is 3,207.07, so its recommendation is highly sensitive to the retained outlier. The public data has no current balance or replenishment schedule, so no top-up is claimed.
+- Validation: `py -3.12 -m pytest -q` passed 40 tests; compilation and `git diff --check` passed.
+- Next: add a small dashboard/report entry point for the real-data results, or stop here for review before changing the existing demos.

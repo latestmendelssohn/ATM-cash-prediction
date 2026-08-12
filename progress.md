@@ -22,3 +22,13 @@
 - Findings: ATM3 has 362 zero days out of 365 and is not a meaningful forecasting series; ATM4 has a maximum of 10,920 against a median of 404 and needs an explicit outlier decision; ATM1 and ATM2 have 3 and 2 internal calendar gaps.
 - Validation: `py -3.12 -m pytest -q` passed 34 tests; compilation and `git diff --check` passed.
 - Next: run the existing rolling-origin baselines and Holt-Winters on the usable real-data series, keeping ATM3 separate from the main comparison.
+
+
+## 2026-08-12 real backtest step
+
+- Added `real_backtest.py` and `tests/test_real_backtest.py`. It reuses `models.leaderboard` with a 14-day horizon, 180-day minimum training window, and 14-day origin step.
+- Generated `reports/real_backtest.md` for ATM1, ATM2, and ATM4 over 13 folds each. ATM3 was excluded explicitly because of its 362 zero days.
+- Results: Holt-Winters has the best ATM1 MASE at 0.91; seasonal naive has the best ATM2 MASE at 0.79; the mean baseline has the best ATM4 MASE at 0.91 while the large ATM4 outlier remains in the data.
+- MAPE is documented as unreliable for ATM2 because zero withdrawals make percentage errors explode.
+- Validation: `py -3.12 -m pytest -q` passed 36 tests; compilation and `git diff --check` passed.
+- Next: decide and document how to handle ATM4's 10,920 outlier before treating the real-data model comparison as final.

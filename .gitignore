@@ -10,3 +10,8 @@ venv/
 
 # Vector store
 chroma_db/
+
+
+# External raw and processed datasets
+data/raw/
+data/processed/

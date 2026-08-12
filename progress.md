@@ -32,3 +32,12 @@
 - MAPE is documented as unreliable for ATM2 because zero withdrawals make percentage errors explode.
 - Validation: `py -3.12 -m pytest -q` passed 36 tests; compilation and `git diff --check` passed.
 - Next: decide and document how to handle ATM4's 10,920 outlier before treating the real-data model comparison as final.
+
+
+## 2026-08-12 interval evaluation step
+
+- Added `interval_evaluation.py` and `tests/test_interval_evaluation.py`. It evaluates empirical coverage and average interval width by forecast day using the same rolling-origin folds.
+- Generated `reports/real_interval_coverage.md` for Holt-Winters at nominal 95% coverage, excluding ATM3.
+- Measured coverage: ATM1 99.45%, ATM2 98.90%, and ATM4 99.45% over 13 folds each. The intervals are conservative; ATM4's mean interval width is 5,024.79 because the retained outlier inflates uncertainty.
+- Validation: `py -3.12 -m pytest -q` passed 38 tests; compilation and `git diff --check` passed.
+- Next: use the measured real-data backtest errors in the cash-loading policy, while keeping the stock-out and sparse-series limitations explicit.

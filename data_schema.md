@@ -41,3 +41,10 @@ Download the raw file into the ignored directory, then run:
 python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/Stevee-G/Data624/main/Project1/ATMData.csv', 'data/raw/ATMData.csv')"
 python data_preprocess.py --input data/raw/ATMData.csv --output data/processed/atm_daily.csv
 ```
+
+
+## ATM4 outlier decision
+
+The raw source contains one ATM4 row with `Cash = 10920` on 2010-02-09. ATM4 has 365 raw rows on 365 unique dates, and this value is not an exact duplicate or a daily aggregation of multiple rows. The processed row also has `transaction_count = 1`.
+
+The value is extreme: ATM4's median is 404, the maximum is 27.03 times the median, and the full-series z-score is 16.05. The local source provides no correction flag, alternate value, or confirmed unit that proves the row is invalid. The value is therefore retained in the primary dataset and model results. Its effect on uncertainty and cash-policy recommendations remains a documented limitation; any future correction should use a separately documented source revision rather than an undocumented winsorization or deletion.

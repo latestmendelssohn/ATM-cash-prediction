@@ -13,3 +13,12 @@
 
 - Preprocessing smoke test passed: 1,474 input rows produced 1,455 daily rows across ATM1-ATM4; the processed file loads through the existing `data.load_series` helper.
 - Validation: `py -3.12 -m pytest -q` passed 32 tests; `git diff --check` reported no whitespace errors.
+
+
+## 2026-08-12 EDA step
+
+- Added `eda.py` and `tests/test_eda.py`. The report stays standard-library only and covers coverage, per-ATM distribution, calendar gaps, weekday means, and month means.
+- Generated `reports/real_data_eda.md` from the processed public data.
+- Findings: ATM3 has 362 zero days out of 365 and is not a meaningful forecasting series; ATM4 has a maximum of 10,920 against a median of 404 and needs an explicit outlier decision; ATM1 and ATM2 have 3 and 2 internal calendar gaps.
+- Validation: `py -3.12 -m pytest -q` passed 34 tests; compilation and `git diff --check` passed.
+- Next: run the existing rolling-origin baselines and Holt-Winters on the usable real-data series, keeping ATM3 separate from the main comparison.

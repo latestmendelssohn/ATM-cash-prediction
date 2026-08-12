@@ -312,6 +312,7 @@ python app.py backtest  --atm ATM001     # model leaderboard
 python app.py cash-plan --atm ATM001 --balance 1.5e7
 python app.py cash-plan --atm ATM001 --cu 9 --co 1   # service level from the costs
 python app.py pipeline                   # forecast + plan for every ATM
+py -3.12 real_report.py                  # regenerate the real-data reports
 pytest                                   # run the core tests
 ```
 

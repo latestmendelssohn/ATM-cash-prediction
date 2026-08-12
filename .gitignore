@@ -15,3 +15,14 @@ chroma_db/
 # External raw and processed datasets
 data/raw/
 data/processed/
+
+# Local working files
+.kiro/local/
+PROGRESS.md
+progress.md
+
+# Plans and action plans
+plan.md
+plan-of-action.md
+action-plan.md
+plans/

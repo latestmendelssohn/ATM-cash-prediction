@@ -53,7 +53,7 @@ def test_holt_winters_recovers_weekly_pattern():
 
 
 def test_holt_winters_beats_mean_on_seasonal_series():
-    _, y = data.load_series(CSV, "ATM001")
+    _, y = data.load_series(CSV, "ATM1")
     board = M.leaderboard(y)
     assert board[0]["model"] == "holt_winters"
     assert board[0]["MASE"] < 1.0
@@ -110,7 +110,7 @@ def test_measured_cycle_sigma_is_used_when_given():
 
 
 def test_cycle_sigma_from_backtest_is_positive_on_real_data():
-    _, y = data.load_series(CSV, "ATM001")
+    _, y = data.load_series(CSV, "ATM1")
     s = M.cycle_sigma_from_backtest(y, lambda: M.SeasonalNaive(7), horizon=14)
     assert s > 0
 
@@ -140,8 +140,8 @@ def test_inr_formatting():
 
 
 def test_forecast_report_metadata():
-    r = forecast_report("ATM001", "holt_winters", "2024-01-01", [1e5, 1.2e5])
-    assert r["metadata"]["kind"] == "forecast" and r["metadata"]["atm_id"] == "ATM001"
+    r = forecast_report("ATM1", "holt_winters", "2024-01-01", [1e5, 1.2e5])
+    assert r["metadata"]["kind"] == "forecast" and r["metadata"]["atm_id"] == "ATM1"
 
 
 def test_build_prompt_grounds_context():
@@ -151,6 +151,7 @@ def test_build_prompt_grounds_context():
 
 def test_dataset_loads():
     atms = data.list_atms(CSV)
-    assert atms == ["ATM001", "ATM002", "ATM003", "ATM004", "ATM005"]
-    d, y = data.load_series(CSV, "ATM001")
-    assert len(y) == 1095 and len(d) == 1095
+    assert atms == ["ATM1", "ATM2", "ATM3", "ATM4"]
+    d, y = data.load_series(CSV, "ATM1")
+    # The public source spans one year with a few internal calendar gaps.
+    assert 350 <= len(y) <= 366 and len(d) == len(y)

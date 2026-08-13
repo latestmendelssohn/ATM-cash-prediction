@@ -1,7 +1,10 @@
 """Shared logic for the Streamlit and Gradio demos.
 
 The UI files stay thin. This module is the only demo-specific layer between them
-and the project's data/model core.
+and the project's data/model core. It uses the small public 2009-2010 ATM
+dataset processed to ``data/processed/atm_daily.csv``. The source CSV does not
+identify a currency, so numbers here are formatted with thousand separators and
+no currency symbol.
 """
 from __future__ import annotations
 
@@ -11,16 +14,14 @@ import data
 import models
 
 DATA_PATH = data.DEFAULT_CSV
-ATMS = data.list_atms(DATA_PATH)
+# ATM3 has almost only zero-withdrawal days in the source and is not a
+# meaningful forecasting series, so it is left out of the demo choices.
+ATMS = [atm for atm in data.list_atms(DATA_PATH) if atm != "ATM3"]
 
 
-def inr(value: float) -> str:
-    value = float(value)
-    if abs(value) >= 10_000_000:
-        return f"Rs {value / 10_000_000:,.2f} Cr"
-    if abs(value) >= 100_000:
-        return f"Rs {value / 100_000:,.2f} L"
-    return f"Rs {value:,.0f}"
+def fmt(value: float) -> str:
+    """Format a number with thousand separators. The source has no stated unit."""
+    return f"{float(value):,.0f}"
 
 
 def run_forecast(atm_id: str, horizon: int, service_level: float):
@@ -47,24 +48,25 @@ def run_forecast(atm_id: str, horizon: int, service_level: float):
     rows = [
         {
             "date": (start + timedelta(days=i)).isoformat(),
-            "forecast (Rs)": round(point[i]),
-            "lower (Rs)": round(lower[i]),
-            "upper (Rs)": round(upper[i]),
+            "forecast": round(point[i]),
+            "lower": round(lower[i]),
+            "upper": round(upper[i]),
         }
         for i in range(horizon)
     ]
     summary = f"""### {atm_id}
 
-This demo uses **Holt-Winters** on the bundled synthetic data.
+This demo uses **Holt-Winters** on the public 2009-2010 ATM dataset.
+Values keep the source unit; the source CSV does not identify a currency.
 
 - Forecast window: **{horizon} days**, starting **{start.isoformat()}**
-- Forecast total: **{inr(sum(point))}**
+- Forecast total: **{fmt(sum(point))}**
 - 95% daily interval: widens with the horizon
-- Recommended cycle load: **{inr(plan['cycle_load'])}**
-- Safety stock: **{inr(plan['safety_stock'])}**
-- Measured cycle-error spread: **{inr(cycle_sigma)}**
+- Recommended cycle load: **{fmt(plan['cycle_load'])}**
+- Safety stock: **{fmt(plan['safety_stock'])}**
+- Measured cycle-error spread: **{fmt(cycle_sigma)}**
 - Target service level: **{service_level:.0%}**
 
-The demo uses synthetic data only. It does not call Gemini and does not need an API key.
+The demo does not call Gemini and does not need an API key.
 """
     return summary, rows

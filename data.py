@@ -1,20 +1,21 @@
-"""
-Synthetic ATM cash data: generation + loading  (pure standard library).
-=======================================================================
+"""ATM daily-cash data: loaders + synthetic generator (pure standard library).
+============================================================================
 
-Real ATM transaction logs are confidential, so we simulate a small fleet with a
-*known* data-generating process and then check whether our models recover it.
-For ATM ``i`` on day ``t`` the net cash dispensed is
+The project runs on a small public ATM dataset (``data/processed/atm_daily.csv``,
+built from ``data/raw/ATMData.csv`` by ``data_preprocess.py``). ``load_series``,
+``list_atms`` and ``location_map`` below serve that file to the models, CLI,
+demos and tests.
+
+The synthetic generator is retained for offline experiments. It simulates a
+small fleet with a known data-generating process. For ATM ``i`` on day ``t``
+the net cash dispensed is
 
     D[i,t] = base_i * trend(t) * weekday(t) * salary(t) * festival(t) * noise
 
-with a strong weekly cycle (weekend peaks), a monthly salary/rent cycle, Indian
-festival spikes and a log-normal shock. The end-of-day balance follows a simple
-(s, S) replenishment rule.
+with a weekly cycle, a monthly salary cycle, festival spikes and a log-normal
+shock. Run it directly to regenerate the file at ``SYNTHETIC_CSV``:
 
-Run directly to (re)generate the dataset:
-
-    python data.py --out data/atm_transactions.csv --atms 5 --days 1095
+    python data.py --atms 5 --days 1095
 """
 from __future__ import annotations
 
@@ -45,9 +46,13 @@ FESTIVALS = {
     (12, 25): 1.30, (12, 31): 1.35,
 }
 
-# The bundled dataset, resolved relative to this file so the CLI and the tests
-# work from any working directory.
-DEFAULT_CSV = Path(__file__).resolve().parent / "data" / "atm_transactions.csv"
+# The project runs on a small public ATM dataset by default. The path is resolved
+# relative to this file so the CLI, demos, and tests work from any working directory.
+# ``SYNTHETIC_CSV`` is kept for the standalone generator below, which is retained
+# for reference and offline experimentation but is no longer the default source.
+_HERE = Path(__file__).resolve().parent
+DEFAULT_CSV = _HERE / "data" / "processed" / "atm_daily.csv"
+SYNTHETIC_CSV = _HERE / "data" / "atm_transactions.csv"
 
 
 def _days_in_month(d: date) -> int:
@@ -157,7 +162,7 @@ def location_map(path: str | Path) -> Dict[str, str]:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Generate the synthetic ATM dataset.")
-    ap.add_argument("--out", default="data/atm_transactions.csv", type=Path)
+    ap.add_argument("--out", default=SYNTHETIC_CSV, type=Path)
     ap.add_argument("--atms", type=int, default=5)
     ap.add_argument("--days", type=int, default=3 * 365)
     ap.add_argument("--start", default="2021-01-01")

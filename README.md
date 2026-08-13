@@ -7,10 +7,10 @@ uncertainty in that forecast, and uses both to decide how much money to load int
 the machine. A Gemini-powered RAG analyst sits on top so the results can be queried
 in plain English.
 
-The public demo is the small Streamlit app. It uses the bundled synthetic data,
-Holt-Winters, prediction intervals and cash planning only. It does not use Gemini,
-store credentials, or connect to a bank system. The API, SARIMA model and RAG analyst
-remain available for local use.
+The public demo is the small Streamlit app. It uses the bundled 2009-2010 public
+ATM dataset, Holt-Winters, prediction intervals and cash planning only. It does not
+use Gemini, store credentials, or connect to a bank system. The API, SARIMA model
+and RAG analyst remain available for local use.
 
 ## Project at a glance
 
@@ -27,12 +27,12 @@ remain available for local use.
 The main data flow is:
 
 ```text
-bundled CSV / data.py
-          |
-          v
-      models.py  --->  app.py (CLI + API)
-          |          ---> analyst.py (optional Gemini RAG)
-          +---------> streamlit_app.py / gradio_app.py
+data/raw/ATMData.csv  --(data_preprocess.py)-->  data/processed/atm_daily.csv
+                                                        |
+                                                        v
+                                                    models.py  --->  app.py (CLI + API)
+                                                        |          ---> analyst.py (optional Gemini RAG)
+                                                        +---------> streamlit_app.py / gradio_app.py
 ```
 
 The project is a student research and demonstration project, not a production
@@ -43,7 +43,9 @@ cash-management system.
 ## The problem, stated precisely
 
 Fix one machine. Let $y_t$ be the net cash it dispenses on day $t$ (withdrawals
-minus the occasional deposit), measured in rupees. Given the history
+minus the occasional deposit), in the source unit of the dataset. The bundled
+public data does not identify a currency, so all cash quantities in this project
+are printed in that unit without a symbol. Given the history
 $y_1,\dots,y_n$ we want three things:
 
 1. A point forecast $\hat y_{n+1},\dots,\hat y_{n+H}$ for the next $H = 14$ days.
@@ -171,14 +173,16 @@ and report the score. But that is one noisy sample, and it quietly leaks informa
 if you tune anything against it. The disciplined alternative for time-ordered data is
 rolling-origin evaluation, also called walk-forward cross-validation: pick an origin,
 train only on the past up to that point, forecast the next $H$ days, score them, then
-slide the origin forward and repeat. On the bundled data this yields 52 folds, and
-averaging over them gives a far more trustworthy ranking than any single split. The
+slide the origin forward and repeat. On the bundled real data, with a 180-day
+minimum training window and a 14-day step, this yields 13 folds per ATM. Averaging
+over the folds gives a far more trustworthy ranking than any single split. The
 model never sees the future it is being tested on.
 
 For the scores themselves we report several complementary metrics, because each tells
 a slightly different story:
 
-- MAE and RMSE, the average error in rupees, where RMSE punishes big misses harder.
+- MAE and RMSE, the average error in the source unit, where RMSE punishes big
+  misses harder.
 - MAPE and sMAPE, the same idea as a percentage, so numbers are comparable across
   machines of very different sizes.
 - MASE, the mean absolute scaled error, and the one to trust most. It divides our
@@ -189,9 +193,9 @@ a slightly different story:
 
 ## Turning a forecast into a decision
 
-Suppose we must load $S$ rupees to cover the next cycle, and demand $D$ over that
-cycle is uncertain. Every rupee we are short costs us $C_u$, a stock-out with lost
-goodwill and penalties. Every rupee left idle costs us $C_o$, the carrying and
+Suppose we must load $S$ units of cash to cover the next cycle, and demand $D$ over
+that cycle is uncertain. Every unit we are short costs us $C_u$, a stock-out with
+lost goodwill and penalties. Every unit left idle costs us $C_o$, the carrying and
 opportunity cost. The expected cost is
 
 $$C(S) = C_o\,\mathbb{E}\big[(S-D)^+\big] + C_u\,\mathbb{E}\big[(D-S)^+\big].$$
@@ -224,10 +228,12 @@ cycle, and $\hat\sigma\sqrt{L}$ only gives that if daily errors are independent.
 two assumptions cannot both hold, so rather than pick one, the code measures the
 quantity it actually needs. `cycle_sigma_from_backtest` reuses the rolling-origin
 folds and takes the standard deviation of (actual $L$-day total minus forecast
-$L$-day total). For ATM001 that measured spread is Rs 23.30 lakh against the Rs 6.68
-lakh the independent-errors formula implies, which raises the 95% safety stock from
-about Rs 11.0 lakh to Rs 38.3 lakh. Measuring the error you care about is worth more
-here than any refinement of the point forecast.
+$L$-day total). On the bundled real ATM4 series the measured 14-day cycle spread is
+3,207 in the source unit, while the independent-errors formula, using the model's
+one-day residual sigma, implies a much smaller number. Cash-planning against the
+measured spread raises the 95% safety stock to 5,275, an amount the daily-interval
+shortcut would understate. Measuring the error you care about is worth more here
+than any refinement of the point forecast.
 
 ## Asking questions in plain English
 
@@ -241,64 +247,86 @@ cash-management circular, and it becomes part of what the analyst can draw on.
 Because the answer is built from retrieved facts rather than the model's memory, it
 stays anchored to your numbers.
 
-## Results, reproducible on the bundled data
+## Results on the bundled real data
 
-A 52-fold rolling-origin backtest at $H = 14$ gives a consistent answer:
-Holt-Winters wins on every machine.
+The bundled data is a small public ATM dataset with four machines and daily
+withdrawals from 2009-05-01 to 2010-04-30. ATM3 is 362 zero-withdrawal days out
+of 365 and is excluded from the leaderboard because it has no signal to forecast.
+A 13-fold rolling-origin backtest at $H = 14$ (180-day minimum train, 14-day step)
+gives:
 
 | ATM | best model | MASE |
 |---|---|---:|
-| ATM001 | holt_winters | 0.976 |
-| ATM002 | holt_winters | 0.977 |
-| ATM003 | holt_winters | 0.865 |
-| ATM004 | holt_winters | 0.994 |
-| ATM005 | holt_winters | 0.921 |
+| ATM1 | holt_winters | 0.91 |
+| ATM2 | seasonal_naive | 0.79 |
+| ATM4 | mean | 0.91 |
 
-For ATM001 the full leaderboard, all four models on the same 52 folds, reads:
+Unlike a longer, cleaner series, real 12-month data does not hand Holt-Winters
+every machine. ATM2's best model is the seasonal naive forecast; ATM1 is
+Holt-Winters by a comfortable margin; ATM4's average-based baseline wins because
+a single outlier of 10,920 (against a median of 404) inflates the residuals of
+any model that tries to fit it.
 
-| model | MAE | RMSE | MAPE | sMAPE | MASE |
-|---|---:|---:|---:|---:|---:|
-| holt_winters | 169,759 | 210,827 | 14.15 | 13.97 | 0.976 |
-| sarima | 183,808 | 225,073 | 15.55 | 15.23 | 1.057 |
-| seasonal_naive | 188,557 | 246,192 | 15.34 | 15.07 | 1.083 |
-| mean | 273,377 | 336,059 | 22.58 | 22.83 | 1.572 |
+Full leaderboard for ATM1:
 
-That ordering makes sense. The mean ignores the weekly rhythm entirely and pays for
-it, the seasonal naive forecast captures the rhythm but cannot adapt its level or
-trend, and Holt-Winters does both. SARIMA, at the fixed order $(1,1,1)(1,1,1)_7$ with
-no tuning per fold, lands between them: better than repeating last week, worse than
-smoothing. What error remains is largely the monthly salary cycle and the festivals,
-which are aperiodic at the weekly scale. That is exactly the structure exogenous
-calendar regressors in a SARIMAX model are built to absorb, and it is the natural
-next step for anyone extending this work.
+| model | MAE | RMSE | sMAPE | MASE |
+|---|---:|---:|---:|---:|
+| holt_winters | 17.70 | 23.34 | 28.92 | 0.91 |
+| seasonal_naive | 19.70 | 25.78 | 28.52 | 1.01 |
+| mean | 25.58 | 35.36 | 38.90 | 1.32 |
 
-One caveat about what is being forecast. The generator records
-`dispensed = min(demand, balance)`, so on a stock-out day the series holds the cash
-the machine could pay out, not the demand that walked up to it. Demand is censored
-from above exactly when it is highest, which biases any model fitted to it downward.
-The bundled data is configured so stock-outs are rare, but the point matters for real
-transaction logs.
+MAPE is dropped from the ATM2 table because ATM2 has zero-withdrawal days, and
+zero actuals blow MAPE up. sMAPE and MASE handle zeros gracefully and are the
+metrics to trust on this series.
 
-Reproduce it yourself:
+At 95% service level the measured cycle-total spread from the same rolling
+folds gives these recommended loads, in the source unit:
+
+| ATM | forecast total (14d) | measured cycle sigma | safety stock | cycle load |
+|---|---:|---:|---:|---:|
+| ATM1 | 1,053 | 115 | 190 | 1,243 |
+| ATM2 | 916 | 78 | 128 | 1,044 |
+| ATM4 | 6,508 | 3,207 | 5,275 | 11,783 |
+
+The interval coverage measured on the same folds is conservative at nominal 95%:
+ATM1 99.4%, ATM2 98.9%, ATM4 99.4%. Numbers to reproduce these tables are in
+`reports/real_backtest.md`, `reports/real_cash_policy.md`, and
+`reports/real_interval_coverage.md`.
+
+A few limitations of these numbers are worth stating up front:
+
+- The source CSV does not identify a currency, so all cash quantities here are
+  in the source unit without a symbol.
+- The one-year source limits both the training window and the number of folds.
+- ATM4's 10,920 observation is retained. It should be treated as a data-quality
+  decision, not silently trimmed after seeing the scores.
+- ATM3 is excluded from modelling; it is kept in the raw file for transparency.
+
+Reproduce these tables yourself:
 
 ```bash
-python app.py backtest --atm ATM001            # the three stdlib models
-python app.py backtest --atm ATM001 --sarima   # adds SARIMA (slow, needs statsmodels)
-python app.py pipeline                         # every machine at once
+python app.py backtest --atm ATM1            # the three stdlib models
+python app.py backtest --atm ATM1 --sarima   # adds SARIMA (slow, needs statsmodels)
+python app.py pipeline                       # every usable machine at once
+py -3.12 real_report.py                      # regenerate the full real-data reports
 ```
 
 ## Project layout
 
 ```
-data.py         synthetic data generation + loaders (pure stdlib)
-models.py       metrics · baselines · Holt-Winters · SARIMA · backtest · cash plan
-analyst.py      RAG: reports + ChromaDB + Gemini + LangChain
-app.py          FastAPI streaming API + CLI
-demo_logic.py   shared forecast + cash-plan logic for both demos
-streamlit_app.py Streamlit Community Cloud dashboard
-gradio_app.py   Gradio alternative entry point
-tests/          tests for the core maths
-data/atm_transactions.csv   bundled synthetic dataset (5 ATMs × 3 years)
+data.py             loaders + offline synthetic generator (pure stdlib)
+data_loader.py      CSV parsing for the public source file
+data_preprocess.py  raw -> processed daily rows with calendar features
+models.py           metrics · baselines · Holt-Winters · SARIMA · backtest · cash plan
+analyst.py          RAG: reports + ChromaDB + Gemini + LangChain
+app.py              FastAPI streaming API + CLI
+demo_logic.py       shared forecast + cash-plan logic for both demos
+streamlit_app.py    Streamlit Community Cloud dashboard
+gradio_app.py       Gradio alternative entry point
+tests/              tests for the core maths and CSV pipeline
+data/raw/           public source CSV (gitignored)
+data/processed/     processed daily CSV (gitignored)
+data/atm_transactions.csv   optional synthetic dataset (5 ATMs, 3 years)
 ```
 
 ## Quickstart
@@ -306,13 +334,14 @@ data/atm_transactions.csv   bundled synthetic dataset (5 ATMs × 3 years)
 ```bash
 pip install -r requirements.txt          # the core actually runs without this
 
-python data.py                           # (re)generate the dataset
-python app.py forecast  --atm ATM001     # 14-day forecast + interval
-python app.py backtest  --atm ATM001     # model leaderboard
-python app.py cash-plan --atm ATM001 --balance 1.5e7
-python app.py cash-plan --atm ATM001 --cu 9 --co 1   # service level from the costs
-python app.py pipeline                   # forecast + plan for every ATM
+python data_preprocess.py --input data/raw/ATMData.csv --output data/processed/atm_daily.csv
+python app.py forecast  --atm ATM1       # 14-day forecast + interval
+python app.py backtest  --atm ATM1       # model leaderboard
+python app.py cash-plan --atm ATM1 --balance 1.5e7
+python app.py cash-plan --atm ATM1 --cu 9 --co 1     # service level from the costs
+python app.py pipeline                   # forecast + plan for every usable ATM
 py -3.12 real_report.py                  # regenerate the real-data reports
+python data.py                           # (optional) regenerate the synthetic CSV
 pytest                                   # run the core tests
 ```
 
@@ -320,8 +349,8 @@ pytest                                   # run the core tests
 
 ```bash
 cp .env.example .env        # then add your GOOGLE_API_KEY
-python app.py index --atm ATM001
-python app.py chat "How much cash should I load into ATM001 next week?"
+python app.py index --atm ATM1
+python app.py chat "How much cash should I load into ATM1 next week?"
 ```
 
 ### The API
@@ -343,7 +372,7 @@ Put it behind auth before exposing it on a network.
 ### Local Streamlit and Gradio demos
 
 The project has two small UI entry points that share `demo_logic.py`. Both use only
-the bundled synthetic data, Holt-Winters, prediction intervals and cash planning.
+the bundled real ATM dataset, Holt-Winters, prediction intervals and cash planning.
 Neither uses Gemini or requires an API key.
 
 ```bash
@@ -363,28 +392,40 @@ your own copy, open [share.streamlit.io](https://share.streamlit.io/), choose th
 GitHub repository, select `main`, and set the main file to `streamlit_app.py`.
 The root `requirements.txt` includes the Streamlit dependency used by the hosted app.
 
-The hosted demo needs no secrets. It uses the committed synthetic CSV and does not
+The hosted demo needs no secrets. It uses the committed processed CSV and does not
 call Gemini. The Gradio entry point remains useful for local demos or a separate
 Python host; Streamlit Community Cloud runs the Streamlit entry point only.
 
 ## A note on the data
 
-The bundled dataset is generated by `data.py`.
+The bundled dataset lives at `data/processed/atm_daily.csv`, built from the raw
+public source at `data/raw/ATMData.csv` by `data_preprocess.py`. `data.py` also
+ships an offline synthetic generator; running `python data.py` writes it to
+`data/atm_transactions.csv` for experimentation, but the app, demos, and tests
+run on the processed public data by default.
 
-The generator, metrics, baselines, Holt-Winters, backtester and cash optimiser use
-the Python standard library only, with no numpy or pandas, and they are covered by
-`test_core.py`. SARIMA, the RAG analyst and the API build on the packages listed in
-`requirements.txt`.
+The loaders, preprocessing, metrics, baselines, Holt-Winters, backtester and cash
+optimiser use the Python standard library only, with no numpy or pandas, and they
+are covered by `test_core.py`. SARIMA, the RAG analyst and the API build on the
+packages listed in `requirements.txt`.
 ## Limitations and scope
 
-- The bundled data is synthetic. It demonstrates the method but does not establish
-  performance on a bank's transaction logs.
-- The generator records `dispensed = min(demand, balance)`. On a stock-out day this
-  censors demand from above, so the observed series can understate unmet demand.
-- Holt-Winters models a weekly season. Monthly salary cycles and festival effects are
-  present in the generated data but are not explicit regressors in the main model.
-- Daily prediction intervals use a widening normal approximation. Cash planning uses
-  the measured spread of total cycle forecast errors from rolling-origin backtests.
+- The public source CSV does not identify a currency; all values are shown in
+  the source unit without a symbol.
+- The one-year source (2009-05-01 to 2010-04-30) limits both the training window
+  and the number of rolling folds (13 per ATM at $H = 14$).
+- ATM3 is excluded from modelling because 362 of its 365 days are zeros. It is
+  kept in the raw file for transparency.
+- ATM4's 10,920 maximum is retained. It should be treated as a data-quality
+  decision, not silently removed after seeing the scores.
+- MAPE is unreliable for ATM2 because zero-withdrawal days blow it up. MASE and
+  sMAPE are the metrics to trust on that series.
+- Holt-Winters models a weekly season. Monthly salary cycles and festival effects
+  are not explicit regressors here; SARIMAX with calendar covariates is a natural
+  next step.
+- Daily prediction intervals use a widening normal approximation. Cash planning
+  uses the measured spread of total cycle forecast errors from rolling-origin
+  backtests.
 - The API has open CORS and no authentication. Use it on localhost unless you add
   access control and quota protection.
 - Gemini, ChromaDB and PDF ingestion are optional local features. The public

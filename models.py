@@ -321,7 +321,7 @@ def build_model(name: str, m: int = 7):
 # ---------------------------------------------------------------------------
 
 def rolling_origin_backtest(y, factory: Callable[[], object], horizon=14,
-                            min_train=365, step=14, m=7) -> Dict[str, float]:
+                            min_train=180, step=14, m=7) -> Dict[str, float]:
     """Walk the forecast origin forward; average per-fold metrics."""
     y = list(y)
     if len(y) < min_train + horizon:
@@ -340,7 +340,7 @@ def rolling_origin_backtest(y, factory: Callable[[], object], horizon=14,
 
 
 def cycle_sigma_from_backtest(y, factory: Callable[[], object], horizon=14,
-                              min_train=365, step=14) -> float:
+                              min_train=180, step=14) -> float:
     r"""Standard deviation of the *cycle-total* forecast error, measured not assumed.
 
     The per-day interval widens like :math:`\sigma\sqrt{k}`, which assumes errors
@@ -363,7 +363,7 @@ def cycle_sigma_from_backtest(y, factory: Callable[[], object], horizon=14,
 
 
 def leaderboard(y, models=("holt_winters", "seasonal_naive", "mean"),
-                horizon=14, min_train=365, step=14, m=7) -> List[dict]:
+                horizon=14, min_train=180, step=14, m=7) -> List[dict]:
     """Backtest several models on the same folds; return a table sorted by MASE."""
     rows = []
     for name in models:

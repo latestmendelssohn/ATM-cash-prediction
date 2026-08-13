@@ -7,7 +7,10 @@ from demo_logic import ATMS, run_forecast
 
 st.set_page_config(page_title="ATM cash forecasting", page_icon="🏧", layout="wide")
 st.title("ATM cash forecasting demo")
-st.caption("Synthetic data only. No Gemini key or bank data is used.")
+st.caption(
+    "Public 2009-2010 ATM dataset. The source CSV does not identify a currency, "
+    "so numbers are shown in the source unit."
+)
 
 with st.sidebar:
     st.header("Forecast settings")

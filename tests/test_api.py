@@ -33,7 +33,7 @@ def test_health(client):
 
 
 def test_forecast_returns_the_requested_horizon(client):
-    body = client.post("/forecast", json={"atm_id": "ATM001", "horizon": 3}).json()
+    body = client.post("/forecast", json={"atm_id": "ATM1", "horizon": 3}).json()
     assert len(body["point"]) == 3 and len(body["lower"]) == 3
 
 
@@ -43,7 +43,7 @@ def test_unknown_atm_is_a_400(client):
 
 def test_cash_plan_costs_set_the_service_level(client):
     body = client.post("/cash-plan",
-                       json={"atm_id": "ATM001", "horizon": 14, "cu": 9, "co": 1}).json()
+                       json={"atm_id": "ATM1", "horizon": 14, "cu": 9, "co": 1}).json()
     assert body["service_level"] == pytest.approx(0.9)
 
 

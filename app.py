@@ -6,13 +6,13 @@ Serve:
     uvicorn app:app --reload          # or:  python app.py serve
 
 CLI:
-    python app.py generate-data
-    python app.py forecast  --atm ATM001 [--model holt_winters] [--horizon 14]
-    python app.py backtest  --atm ATM001
-    python app.py cash-plan --atm ATM001 [--service-level 0.95] [--balance 1.5e7]
-    python app.py pipeline                        # forecast every ATM
-    python app.py index --atm ATM001              # embed reports (needs GOOGLE_API_KEY)
-    python app.py chat "How much cash for ATM001 next week?"
+    python app.py generate-data                       # writes the offline synthetic CSV
+    python app.py forecast  --atm ATM1 [--model holt_winters] [--horizon 14]
+    python app.py backtest  --atm ATM1
+    python app.py cash-plan --atm ATM1 [--service-level 0.95] [--balance 1.5e7]
+    python app.py pipeline                            # every real ATM except ATM3
+    python app.py index --atm ATM1                    # embed reports (needs GOOGLE_API_KEY)
+    python app.py chat "How much cash for ATM1 next week?"
 
 The forecast / backtest / cash-plan / pipeline commands run on the pure-Python
 core with no third-party packages.
@@ -231,7 +231,7 @@ def _cli(argv=None):
     p = argparse.ArgumentParser(prog="app.py", description="ATM cash forecasting + RAG analyst")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    g = sub.add_parser("generate-data"); g.add_argument("--out", default=DATA_PATH)
+    g = sub.add_parser("generate-data"); g.add_argument("--out", default=data.SYNTHETIC_CSV)
     g.add_argument("--atms", type=int, default=5); g.add_argument("--days", type=int, default=1095)
 
     fc = sub.add_parser("forecast"); fc.add_argument("--atm", required=True)
@@ -278,8 +278,13 @@ def _cli(argv=None):
         print(json.dumps(cash_plan_atm(a.atm, a.sl, a.horizon, a.balance, cu=a.cu, co=a.co),
                          indent=2, default=str))
     elif a.cmd == "pipeline":
+        # ATM3 has ~99% zero-withdrawal days in the real dataset and is not a
+        # meaningful forecasting series; keep it out of the leaderboard by default.
+        excluded = {"ATM3"}
         print(f"{'ATM':<8}{'best':<15}{'MASE':>7}{'total_14d':>16}{'cycle_load':>16}")
         for atm in data.list_atms(DATA_PATH):
+            if atm in excluded:
+                continue
             _, y = data.load_series(DATA_PATH, atm)
             board = models.leaderboard(y)
             best = board[0]["model"]
